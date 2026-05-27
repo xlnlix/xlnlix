@@ -1,0 +1,52 @@
+name: Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        required: true
+
+env:
+  DEFAULT_BOTS: 20
+
+
+jobs:
+
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+
+    steps:
+      - id: set
+        run: |
+          BOTS=${{ env.DEFAULT_BOTS }}
+
+          MATRIX=$(seq 1 $BOTS | jq -R . | jq -cs .)
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+
+  bot:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        bot: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Bot info
+        run: |
+          echo "Starting bot ${{ matrix.bot }}"
+
+      - name: Run script
+        run: |
+          chmod +x main
+          ./main "${{ github.event.inputs.url }}"
